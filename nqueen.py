@@ -255,3 +255,138 @@ def a_star(state: BoardNode, visited_states: List[BoardNode]):
 
     visited_states.append(next_state)
     return next_state
+
+
+##################################
+
+MUTATE_RATE: float = 0.05
+CROSSOVER_RATE: float = 1.0
+MULTIPOINT: bool = False
+
+
+class Solution():
+    def __init__(self, queens: List[Queen]):
+        # the queens define the solution/chromosome,
+        # The position of each queen is a gene.
+        # the queen object itself is just a wrapper class for the queen position and theeats on it.
+        self.queens = queens
+
+        # total_threats (fitness): the fitness of the solution, lower is better. 0 is solved.
+        total_threats = 0
+        for queen in queens:
+            total_threats += queen.threats
+        self.total_threats = total_threats
+
+    def __str__(self) -> str:
+        str = '['
+        for q in self.queens:
+            str += f'{q.pos}, '
+        str += ']'
+        return f'Solution(fitness: {self.total_threats}, queens: {str})'
+
+
+# creates a random solution (random queen positions)
+def create_solution(N) -> Solution:
+    queens: List[Queen] = []
+    for n in range(N):
+        queens.append(Queen(random.randint(0, N - 1)))
+    threats = calc_threats(queens)
+    update_threats(queens, threats)
+    return Solution(queens)
+
+
+# returns a mutated gene (a new position for a queen)
+def mutated_gene(N: int) -> int:
+    return random.randint(0, N - 1)
+
+
+# where the magic happens,
+# depending on the passe paras it will crossover and mutate to produce a new solution out of the two passed solutions.
+def mate(parent1: Solution, parent2: Solution, mutate_rate: float = MUTATE_RATE, multipoint: bool = MULTIPOINT, crossover_rate: float = CROSSOVER_RATE) -> Solution:
+
+    child: Solution = None
+
+    prob = random.random()
+
+    if prob < crossover_rate:
+        child = crossover(parent1, parent2, multipoint)
+    else:
+        child = parent1 if parent1.total_threats < parent2.total_threats else parent2
+
+    for queen in child.queens:
+        prob = random.random()
+        if prob < mutate_rate:
+            queen.pos = mutated_gene(len(child.queens))
+
+    return child
+
+
+# takes two solutions and crosses them over on a random point,
+# this produces to children, the fittest is returned.
+def crossover(parent1: Solution, parent2: Solution, multipoint: bool = False) -> Solution:
+    if not multipoint:
+        point: int = random.randint(0, len(parent1.queens) - 1)
+
+        queens1: List[Queen] = copy_queens(
+            parent1.queens[:point] + parent2.queens[point:])
+        queens2: List[Queen] = copy_queens(
+            parent2.queens[:point] + parent1.queens[point:])
+
+        new_threats = calc_threats(queens1)
+        update_threats(queens1, new_threats)
+        new_threats = calc_threats(queens2)
+        update_threats(queens2, new_threats)
+
+        child1: Solution = Solution(queens1)
+        child2: Solution = Solution(queens2)
+
+        return child1 if child1.total_threats < child2.total_threats else child2
+
+
+def genetic(N: int, population_size: int, generations: int, elitism: bool = True, mutate_rate: float = MUTATE_RATE, multipoint: bool = MULTIPOINT, crossover_rate: float = CROSSOVER_RATE) -> Solution:
+    generation: int = 1
+    solved: bool = False
+    population: List[Solution] = []
+
+    for _ in range(population_size):
+        population.append(create_solution(N))
+
+    while (generation <= generations) & (not solved):
+
+        # sort the population based on fitness (threats)
+        population.sort(key=lambda solution: solution.total_threats)
+
+        if population[0].total_threats == 0:
+            solved = True
+            print('Hola FOUND ITTTT')
+            print(population[0])
+            return population[0]
+
+        new_generation: List[Solution] = []
+
+        if elitism:
+            # pass the top 10% solutions to the next generation
+            top_ten = int((10 * population_size) / 100)
+            new_generation.extend(population[:top_ten])
+
+        # pick and mate parents for the next genration randomly from the top 50%
+        top_fifty = int((50 * population_size) / 100)
+        for _ in range(int((90 * population_size) / 100)):
+            parent1 = random.choice(population[:top_fifty])
+            parent2 = random.choice(population[:top_fifty])
+
+            child = mate(parent1, parent2, mutate_rate,
+                         multipoint, crossover_rate)
+            new_generation.append(child)
+
+        population = new_generation
+
+        print(f'gen: {generation}, {population[0]}')
+
+        generation += 1
+
+    population.sort(key=lambda solution: solution.total_threats)
+    return population[0]
+
+
+print(genetic(30, 100, 100))

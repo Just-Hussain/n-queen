@@ -1,7 +1,9 @@
 from typing import List
 from pygame import Color, display, draw, event, image, key, locals, Rect, Surface, mouse, time, transform
 import pygame as p
+import pygame_gui as gui
 from nqueen import Queen, BoardNode, rand_initial_state, a_star
+
 
 # constans of the app, N is the board sze and FPS is the framearte for the engine
 WIDTH = HEIGHT = 512
@@ -14,33 +16,90 @@ QUEEN = transform.scale(image.load('blackQueen.png'),
 
 state = rand_initial_state(N)
 visited_states: List[BoardNode] = []
+search = True
+
 # queens = [Queen(0)] * N
 # queens = [Queen(0), Queen(3), Queen(1), Queen(0)]
 
+p.init()
+display.set_caption('N-Queen')
+
+screen = display.set_mode((WIDTH, HEIGHT))
+clock = time.Clock()
+clock.tick(FPS)
+manager = gui.UIManager((WIDTH, HEIGHT))
+
+btn_astar = gui.elements.UIButton(relative_rect=Rect((0, 0), (100, 50)),
+                                  text='Start A*',
+                                  manager=manager)
+btn_genetic = gui.elements.UIButton(relative_rect=Rect((150, 0), (130, 50)),
+                                    text='Start Genetinc',
+                                    manager=manager)
+
 
 def main():
-    p.init()
-    display.set_caption('N-Queen')
-    screen = display.set_mode((WIDTH, HEIGHT))
-    screen.fill(Color('white'))
-    clock = time.Clock()
-
     running = True
     while running:
+        screen.fill(Color(41, 45, 62))
+
         for e in event.get():
             if e.type == locals.QUIT:
                 running = False
 
-        global state
-        global visited_states
+            if e.type == locals.USEREVENT:
+                if e.user_type == gui.UI_BUTTON_PRESSED:
+                    if e.ui_element == btn_astar:
+                        global state
+                        state = rand_initial_state(N)
+                        a_star_window()
+
+            manager.process_events(e)
+
+        manager.update(FPS)
+        screen.blit(screen, (0, 0))
+        manager.draw_ui(screen)
+        display.flip()
+    pass
+
+
+def genetic_menu():
+    pass
+
+
+def genetic_window():
+    pass
+
+
+def a_star_menu():
+    pass
+
+
+def a_star_window():
+    global search
+    global state
+    global visited_states
+    search = True
+    running = True
+    while running:
+
+        for e in event.get():
+            if e.type == locals.QUIT:
+                running = False
+
+            if e.type == locals.KEYDOWN:
+                if e.key == locals.K_ESCAPE:
+                    running = False
+                if e.key == locals.K_SPACE:
+                    search = not search
 
         drawBoard(screen)
         drawQueens(screen,  state.queens)
 
-        clock.tick(FPS)
+        # clock.tick(FPS)
+
         display.flip()
 
-        if state.total_threats > 0:
+        if (state.total_threats > 0) & (search):
             state = a_star(state, visited_states)
 
 
